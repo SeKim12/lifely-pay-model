@@ -94,9 +94,39 @@ class Router:
         self._va_pool.redeem_to(buyer, redeem_va_minus_fees)
 
         fee_va = redeem_va.times(Params.op_premium())
+        self._va_pool.withdraw(fee_va)
         fee_sa = self._oracle.exchange(fee_va, self._sa_denom)
         self._fee_pool.deposit(fee_sa)
         logger.info(Events.Buyer.SuccessRedeem.fmt(buyer, redeem_va_minus_fees, redeem_usd_minus_fees))
+
+    def process_lp_provider_request(self, provider: types.AgentType, tokens_sa: types.Tokens):
+        logger.info(Events.Provider.AttemptingProvide.fmt(provider, tokens_sa))
+        self._sa_pool.deposit(tokens_sa, protocol_injected=provider.type == 'Protocol')
+        amount_lp = self._sa_pool.calculate_lp_token_amount(tokens_sa)
+        tokens_lp = types.Tokens(amount_lp, 'LP')
+        self._lp_tc.mint_to(provider, tokens_lp)
+        logger.info(Events.Provider.SuccessProvide.fmt(provider, tokens_sa))
+
+    def process_lp_provider_redeem_request(self, provider: types.AgentType, tokens_lp: types.Tokens):
+        logger.info(Events.Provider.AttemptingRedeem.fmt(provider, tokens_lp))
+        lp_portion = self._lp_tc.calculate_lp_portion(tokens_lp)
+        # NOTE: this must be done AFTER lp_portion is calculated
+        self._lp_tc.burn(tokens_lp)
+
+        # NOTE: assuming that initial liquidity is provided by the protocol
+        # Otherwise, we will double count principal and initial liquidity
+        redeem_principal_amount = (self._sa_pool.principal + self._sa_pool.initial_liquidity) * lp_portion
+        redeem_sa = types.Tokens(redeem_principal_amount, self._sa_denom)
+
+        # liquidate VA Pool if necessary, and redeem to provider
+        self._handle(self._sa_pool.redeem_to, provider, redeem_sa)
+
+        redeem_fee_usd = self._fee_pool.balance * lp_portion
+        redeem_fee = types.Tokens(redeem_fee_usd, self._sa_denom)
+        # redeem fees to provider
+        self._fee_pool.redeem_to(provider, redeem_fee)
+
+        logger.info(Events.Provider.SuccessRedeem.fmt(provider, redeem_sa.plus(redeem_fee)))
 
     def _handle(self, func, *args):
         """

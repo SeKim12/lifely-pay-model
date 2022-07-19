@@ -3,6 +3,8 @@ from collections import defaultdict
 from typing import Tuple, Dict, Set
 from typing_extensions import TypeAlias
 
+from states import errors
+
 Exception_: TypeAlias = Exception or None
 
 
@@ -56,6 +58,11 @@ class Tokens:
     def decompose(self):
         return self._amount, self._denom
 
+    def plus(self, token):
+        if token.denom != self._denom:
+            raise Exception
+        return Tokens(self._amount + token.amount, self._denom)
+
     def times(self, dec):
         return Tokens(self._amount * dec, self._denom)
 
@@ -73,6 +80,11 @@ class AgentType(metaclass=ABCMeta):
     @property
     @abstractmethod
     def name(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def type(self) -> str:
         pass
 
     # @abstractmethod
@@ -94,6 +106,27 @@ class AgentType(metaclass=ABCMeta):
     @abstractmethod
     def sends(self, tokens: Tokens):
         pass
+
+
+class DummyProtocolAgent(AgentType):
+
+    @property
+    def identity(self) -> Tuple[str, str]:
+        return 'Protocol', 'LifelyPay'
+
+    @property
+    def name(self) -> str:
+        return 'LifelyPay'
+
+    @property
+    def type(self) -> str:
+        return 'Protocol'
+
+    def receives(self, tokens: Tokens):
+        return
+
+    def sends(self, tokens: Tokens):
+        return
 
 
 class ObserverType(metaclass=ABCMeta):
@@ -135,6 +168,15 @@ class StablePoolType(PoolType):
     @property
     @abstractmethod
     def principal(self) -> float:
+        pass
+
+    @property
+    @abstractmethod
+    def initial_liquidity(self) -> float:
+        pass
+
+    @abstractmethod
+    def calculate_lp_token_amount(self, tokens_sa: Tokens) -> float:
         pass
 
 

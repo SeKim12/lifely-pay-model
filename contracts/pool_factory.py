@@ -85,6 +85,11 @@ class StablePool(Pool, types.StablePoolType):
     def __init__(self, base_denom: str):
         super().__init__(base_denom)
         self._principal = 0
+        self._initial_liquidity = 0
+
+    @property
+    def initial_liquidity(self):
+        return self._initial_liquidity
 
     @property
     def principal(self):
@@ -92,6 +97,10 @@ class StablePool(Pool, types.StablePoolType):
 
     def deposit(self, tokens: types.Tokens, protocol_injected=False):
         super().deposit(tokens)
+        if self._initial_liquidity == 0:
+            self._initial_liquidity = tokens.amount
+            logger.info(Events.Pool.Initalized.fmt(self, tokens))
+        self._initial_liquidity = self._initial_liquidity or tokens.amount
         self._principal += tokens.amount if not protocol_injected else 0
         return tokens
 
@@ -102,6 +111,9 @@ class StablePool(Pool, types.StablePoolType):
             return deficit, e
         self._principal -= redeemed.amount
         return redeemed, None
+
+    def calculate_lp_token_amount(self, tokens_sa: types.Tokens):
+        return tokens_sa.amount / self._initial_liquidity if self._initial_liquidity else 1
 
 
 class VolatilePool(Pool, types.VolatilePoolType):
@@ -139,9 +151,15 @@ class FeePool(Pool):
         super().__init__(base_denom)
         self._type = 'Fee'
 
-    # this should be implemented for LP redemption scenario
-    def redeem_to(self, recipient: types.AgentType, tokens_to_redeem: types.Tokens):
-        raise NotImplemented
+    def withdraw(self, tokens: types.Tokens):
+        """
+        Fee Pool should not have any problem withdrawing.
+        Therefore, raise Error
+        """
+        withdrew, e = super().withdraw(tokens)
+        if e:
+            raise e
+        return withdrew, None
 
 
 if __name__ == '__main__':

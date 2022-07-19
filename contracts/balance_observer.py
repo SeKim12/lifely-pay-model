@@ -38,7 +38,7 @@ class BalanceObserver(types.ObserverType):
         assets_lst = self.total_assets_list_usd()
         assets_usd = sum(assets_lst)
         threshold = self._sa_pool.principal * Params.danger_threshold()
-        if assets_usd <= threshold:
+        if assets_usd < threshold:
             logger.warning(events.TriggerDangerProtocolEvent(assets_lst, threshold))
             self.__rebalancing = True
             self.__trigger_danger_protocol()

@@ -48,6 +48,9 @@ class LPTokenContract(TokenContract):
         super().__init__()
         self._denoms.add('LP')
 
+    def calculate_lp_portion(self, tokens_lp: types.Tokens):
+        return tokens_lp.amount / self.get_token_issued('LP')
+
 
 class ERC1155TokenContract(TokenContract):
     def __init__(self):

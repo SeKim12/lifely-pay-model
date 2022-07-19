@@ -3,6 +3,11 @@ from utils import types
 
 class Events:
     class Pool:
+        class Initalized(types.EventBus):
+            @staticmethod
+            def fmt(pool: types.PoolType, tokens: types.Tokens):
+                return '{} Pool Initialized with {:.2f} {}'.format(pool.type, *tokens.decompose())
+
         class WithdrawSuccess(types.EventBus):
             @staticmethod
             def fmt(pool: types.PoolType, tokens: types.Tokens):
@@ -45,6 +50,28 @@ class Events:
             @staticmethod
             def fmt(denom: str, og_val: float, cur_val: float):
                 return '{} Price Changed from ${:.2f} to ${:.2f}'.format(denom, og_val, cur_val)
+
+    class Provider:
+        class AttemptingProvide(types.EventBus):
+            @staticmethod
+            def fmt(provider: types.AgentType, tokens: types.Tokens):
+                return 'Provider {} Attempting to Provide {:.2f} {}'.format(provider.name, *tokens.decompose())
+
+        class SuccessProvide(types.EventBus):
+            @staticmethod
+            def fmt(provider: types.AgentType, tokens_sa: types.Tokens):
+                return '{} {} Successfully Provided {:.2f} {} to Pool'.format(*provider.identity,
+                                                                              *tokens_sa.decompose())
+
+        class AttemptingRedeem(types.EventBus):
+            @staticmethod
+            def fmt(provider: types.AgentType, tokens_lp: types.Tokens):
+                return '{} {} Attempting to Redeem {:.2f} {}'.format(*provider.identity, *tokens_lp.decompose())
+
+        class SuccessRedeem(types.EventBus):
+            @staticmethod
+            def fmt(provider: types.AgentType, redeemed_sa: types.Tokens):
+                return '{} {} Successfully Redeemed {:.2f} {}'.format(*provider.identity, *redeemed_sa.decompose())
 
     class Buyer:
         class AttemptingBuy(types.EventBus):

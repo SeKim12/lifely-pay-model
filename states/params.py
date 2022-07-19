@@ -7,10 +7,10 @@ logger = processlogger.ProcessLogger()
 class Params:
     _tolerance = 0.2
 
-    _tx_fee_rate = 0.2
-    _op_premium = 0.1
+    _tx_fee_rate = 0.02
+    _op_premium = 0.01
 
-    _danger_threshold = 1.5
+    _danger_threshold = 1.3
 
     _safety_floor = 3 / 4
 
@@ -22,7 +22,7 @@ class Params:
 
     _redeem_cap = 1
 
-    _liquidation_spread = 0.2
+    _liquidation_spread = 0.15
 
     @staticmethod
     def tolerance(set_val=None):

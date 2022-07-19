@@ -13,6 +13,25 @@ class TestStablePoolMethods(unittest.TestCase):
     def setUp(self):
         self.usdc_pool = pool_factory.StablePool('USDC')
 
+    def test_initial_liquidity(self):
+        self.assertEqual(self.usdc_pool.initial_liquidity, 0)
+        self.usdc_pool.deposit(types.Tokens(1000, 'USDC'), protocol_injected=True)
+        self.assertEqual(self.usdc_pool.initial_liquidity, 1000)
+        self.usdc_pool.deposit(types.Tokens(1000, 'USDC'))
+        self.assertEqual(self.usdc_pool.initial_liquidity, 1000)
+        logger.test('#test_initial_liquidity()')
+
+    def test_calculate_lp_token_amount(self):
+        provide = types.Tokens(100, 'USDC')
+        self.usdc_pool.deposit(provide)
+        amount_lp = self.usdc_pool.calculate_lp_token_amount(provide)
+        self.assertEqual(amount_lp, 1)
+
+        provide_2 = provide.times(0.5)
+        amount_lp_2 = self.usdc_pool.calculate_lp_token_amount(provide_2)
+        self.assertEqual(amount_lp_2, 0.5)
+        logger.test('#test_calculate_lp_token_amount()')
+
     def test_denom(self):
         self.assertEqual(self.usdc_pool.denom, 'USDC')
         logger.test('#test_denom()')
@@ -85,7 +104,6 @@ class TestStablePoolMethods(unittest.TestCase):
     @patch('agents.buyer.BuyerAgent')
     def test_redeem_to_error(self, mock_buyer):
         type(mock_buyer).identity = PropertyMock(return_value=('Buyer', 'John'))
-
         tokens = types.Tokens(10000, 'USDC')
         self.usdc_pool.deposit(tokens)
 
@@ -109,7 +127,6 @@ class TestStablePoolMethods(unittest.TestCase):
     @patch('agents.buyer.BuyerAgent')
     def test_transfer_to(self, mock_buyer):
         type(mock_buyer).identity = PropertyMock(return_value=('Buyer', 'Timothy'))
-
         tokens = types.Tokens(10000, 'USDC')
         self.usdc_pool.deposit(tokens)
 
@@ -156,4 +173,4 @@ class TestVolatilePoolMethods(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main(verbosity=2)
+    unittest.main()

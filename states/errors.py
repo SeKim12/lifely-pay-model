@@ -38,3 +38,10 @@ class NegativeCirculatingSupplyError(Exception):
             .format(amount_burned, denom, amount_issued, denom)
         logger.critical(message)
         super().__init__(message)
+
+
+class PoolNotInitializedError(Exception):
+    def __init__(self, pool_type):
+        message = 'NOT INITIALIZED: {} Pool Not Initialized. Protocol must inject liquidity first'.format(pool_type)
+        logger.critical(message)
+        super().__init__(message)
