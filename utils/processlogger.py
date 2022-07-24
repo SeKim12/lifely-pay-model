@@ -7,7 +7,7 @@ class ProcessLogger:
         self.__logger.handlers.clear()
         self.__logger.propagate = False
 
-        self.__logger.setLevel(logging.DEBUG)
+        self.__logger.setLevel(logging.INFO)
 
         fmt = logging.Formatter(
             '%(asctime)s [%(levelname)s] %(message)s'

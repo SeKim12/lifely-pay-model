@@ -12,7 +12,7 @@ class PoolNotEnoughBalanceError(Exception):
 
 class CannotLiquidateEnoughError(Exception):
     def __init__(self, liq_amount, actual_amount, denom):
-        message = 'ASSET DEPLETED: Need to liquidate {:.2f} {}, Only have {:.2f} {}'.format(liq_amount, denom,
+        message = 'ASSET DEPLETED: Need to liquidate {} {}, Only have {} {}'.format(liq_amount, denom,
                                                                                             actual_amount, denom)
         logger.critical(message)
         super().__init__(message)

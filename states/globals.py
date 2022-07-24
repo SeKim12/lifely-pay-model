@@ -1,4 +1,4 @@
-prices = {
-    'ETH': 100,
-    'USDC': 1,
-}
+# prices = {
+#     'ETH': 100,
+#     'USDC': 1,
+# }
