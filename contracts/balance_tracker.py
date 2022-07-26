@@ -7,7 +7,7 @@ from states.params import Params
 from states.events import Events
 from states.interfaces import BalanceTrackerI, PoolI, VolatilePoolI, StablePoolI, TokenI
 from utils import processlogger
-from utils.safe_decimals import geq, leq
+from utils.safe_decimals import leq
 from agents.oracle import Oracle
 
 logger = processlogger.ProcessLogger()
@@ -20,7 +20,11 @@ class BalanceTracker(BalanceTrackerI):
         self._fee_pool = fee_pool
 
         self._warning = False
-        self._count = 10
+        self._count = 200
+
+        # Used for model
+        self.num_triggered = 0
+        self.num_rebalanced = 0
 
     @property
     def warning(self):
@@ -50,14 +54,15 @@ class BalanceTracker(BalanceTrackerI):
         steps = []
 
         for i in range(n_floors - 1, 0, -1):
+            # Ensure that length is the same for all withdraw steps
             if leq(remaining, 0):
                 steps.append(Tokens(Decimal(0), self._sa_pool.denom))
                 continue
-            # e.g. for n_floors == 5 => 4/5 of principal, 3/5 of principal, etc.
             floor = self._sa_pool.principal * Decimal(i / n_floors)
             if leq(self._sa_pool.balance, floor):
                 steps.append(Tokens(Decimal(0), self._sa_pool.denom))
                 continue
+
             ceiling = min(ceiling, self._sa_pool.balance)
 
             balance_in_range = ceiling - floor
@@ -94,23 +99,27 @@ class BalanceTracker(BalanceTrackerI):
 
         tolerant_level = self._sa_pool.principal * Params.tolerance()
         content_level = self._sa_pool.principal * Params.content()
+        threshold = Decimal("1.1111111")
 
         # Case 1 (EMERGENCY): Convert all remaining VA to SA =>
         #   when actual price of VA <= target price of VA,
         #   set protocol balance to WARNING, and start count
         #   protocol blocks any withdrawal from SA Pool until count,
         #   then resumes iff protocol balances are stabilized
+
+        # liquidation spread == 10%, need to liquidate at 11.1111...% to get 100% principal
         if not self._warning and leq(
-            actual_va_price_usd, target_va_price_usd * Params.danger_threshold()
+            actual_va_price_usd, target_va_price_usd * threshold
         ):
+            self.num_triggered += 1
             self._warning = True
-            self._count = 10
+            self._count = 200
             logger.warning(
                 Events.Balancer.TriggerEmergencyProtocol.fmt(
                     self._total_assets_list_usd(),
                     self._sa_pool.principal,
-                    target_va_price_usd,
                     actual_va_price_usd,
+                    target_va_price_usd,
                 )
             )
             return self._trigger_danger_protocol()
@@ -121,50 +130,51 @@ class BalanceTracker(BalanceTrackerI):
         #   therefore, when SA pool balance falls below a certain parameter,
         #   we refill the pool up to a pre-determined sufficient amount
         elif leq(self._sa_pool.balance, tolerant_level):
-            liq_va = Oracle.exchange(
-                Tokens(content_level - self._sa_pool.balance, "USDC"), "ETH"
-            )
+            self.num_rebalanced += 1
             logger.warning(
                 Events.Balancer.Rebalacing.fmt(
                     self._sa_pool.balance, tolerant_level, content_level
                 )
             )
-            self._va_pool.liquidate(liq_va)
+
+            can_liquidate_va = Tokens(self._va_pool.balance, "ETH")
+            can_liquidate_sa = Oracle.exchange(can_liquidate_va, "USDC")
+
+            to_refill_sa = Tokens(
+                min(can_liquidate_sa.amount, content_level - self._sa_pool.balance),
+                "USDC",
+            )
+
+            to_refill_va = Oracle.exchange(to_refill_sa, "ETH")
+
+            self._va_pool.liquidate(to_refill_va)
+            self._sa_pool.deposit(to_refill_sa, protocol_injected=True)
+
             return
 
         # Case 3: Protocol is stable again =>
         #   when warning is turned on (i.e. buyer rewards are turned off),
         #   but protocol balances are stabilized (negation of trigger condition),
         #   then turn off warning iff mandatory count since trigger has been reached
-        elif (
-            self._warning
-            and actual_va_price_usd > target_va_price_usd * Params.danger_threshold()
-        ):
+        elif self._warning and actual_va_price_usd > target_va_price_usd * threshold:
             self._warning = self._count > 0
-        self._count = self._count and self._count - 1
+        self._count -= 1
 
     def _total_assets_list_usd(self) -> List[Decimal]:
         return [self.va_pool_value_usd(), self._sa_pool.balance, self._fee_pool.balance]
 
-    # def _real_price_of_va(self) -> Decimal:
-    #     """
-    #     The real (vs. nominal) price of VA
-    #     It is the price p such that, for quantity q VA, the protocol's asset value is enough to return principal
-    #     """
-    #     required_value_of_va = (
-    #         self._sa_pool.principal - self._sa_pool.balance - self._fee_pool.balance
-    #     )
-    #     return (
-    #         required_value_of_va / self._va_pool.balance if self._va_pool.balance else 0
-    #     )
-
     def _trigger_danger_protocol(self) -> None:
         """
-        Liquidates EVERYTHING in VA Pool to SA Pool
+        Liquidates EVERYTHING in VA Pool and Fee Pool to SA Pool.
+        Cash in VA Pool and the Fee Pool to SA Pool.
         """
         liq_va = Tokens(self._va_pool.balance, self._va_pool.denom)
         self._va_pool.liquidate(liq_va)
         # sell assets at a discount as incentive
         deposit_va = liq_va.times(1 - Params.liquidation_spread())
         deposit_sa = Oracle.exchange(deposit_va, self._sa_pool.denom)
-        self._sa_pool.deposit(deposit_sa)
+        self._sa_pool.deposit(deposit_sa, protocol_injected=True)
+
+        # total_fees = Tokens(self._fee_pool.balance, "USDC")
+        # self._fee_pool.withdraw(total_fees)
+        # self._sa_pool.deposit(total_fees, protocol_injected=True)

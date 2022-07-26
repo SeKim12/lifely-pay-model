@@ -78,18 +78,15 @@ class Wallet(WalletI):
     def funds(self) -> Dict[str, Decimal]:
         return self._funds
 
-    @property
-    def total_redeemed(self) -> Dict[str, Decimal]:
-        return self._total_redeemed
-
-    @property
-    def total_spent(self) -> Dict[str, Decimal]:
-        return self._total_spent
+    def initiate_with(self, denom) -> None:
+        self._funds[denom] = Decimal("infinity")
 
     def receives(self, tokens: TokenI):
+        """
+        Any funds that are received after initiation must be from redemptions
+        Except for voucher tokens; however, we track them in a separate logic.
+        """
         amount, denom = tokens.decompose()
-        # track total amount of tokens redeemed
-        self._total_redeemed[denom] += amount
         self._funds[denom] += amount
 
     def sends(self, tokens: TokenI):
@@ -97,14 +94,15 @@ class Wallet(WalletI):
         if lt(self._funds[denom], to_send):
             raise Exception
         self._funds[denom] -= to_send
-        # track total amount that was spent, either through staking or buying
-        self._total_spent[denom] += to_send
 
     def balance_of(self, denom: str) -> Decimal:
         return self._funds[denom]
 
 
 class BuyerWallet(Wallet, BuyerWalletI):
+    def __init__(self, owner: str):
+        super().__init__(owner)
+
     def redeemable_balance(self, cur_price: Decimal):
         for denom in self._funds:
             if denom[0] == "<":

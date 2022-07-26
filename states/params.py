@@ -27,7 +27,7 @@ class Params:
 
     _liquidation_spread = Decimal("0.10")
 
-    _buy_cap = Decimal(100)  # ETH
+    _buy_cap = Decimal(50)  # ETH
     _stake_cap = Decimal(1000000)  # USDC
 
     @staticmethod
@@ -42,7 +42,7 @@ class Params:
         Params.safety_premium(Decimal(1))
         Params.redeem_cap(Decimal(1))
         Params.liquidation_spread(Decimal("0.10"))
-        Params.buy_cap(Decimal(100))
+        Params.buy_cap(Decimal(50))
         Params.stake_cap(Decimal(1000000))
 
     @staticmethod

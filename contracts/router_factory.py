@@ -38,6 +38,21 @@ class Router(RouterI):
         self._it = inflation_tracker.InflationTracker(self._erc_tc, self._bt)
 
     @property
+    def num_triggered(self):
+        return self._bt.num_triggered
+
+    @property
+    def num_rebalanced(self):
+        return self._bt.num_rebalanced
+
+    @property
+    def is_accepting_liquidity(self):
+        """
+        Liquidity Providing is capped at 2M, and Initial Liquidity is 1M.
+        """
+        return self._sa_pool.principal <= (Params.stake_cap() * 2)
+
+    @property
     def va_denom(self):
         return self._va_denom
 
@@ -93,6 +108,7 @@ class Router(RouterI):
             self._erc_tc.mint_to(buyer, voucher_tokens)
 
         fee_sa = cost_sa.times(Params.tx_fee_rate())
+        # self._sa_pool.deposit(fee_sa, protocol_injected=True)
         self._fee_pool.deposit(fee_sa)
         logger.info(Events.Buyer.SuccessBuy.fmt(buyer, tokens_va, cost_sa.amount))
 
@@ -113,9 +129,11 @@ class Router(RouterI):
         logger.info(Events.Buyer.AttemptingRedeem.fmt(buyer, vc_tokens))
 
         redeem_usd = self._calculate_amount_to_redeem_buyer_usd(vc_tokens)
-        # nothing to redeem, buyers do not consume voucher tokens
+        # nothing to redeem, re-mint voucher tokens to buyer
         if leq(redeem_usd, 0):
+            self._erc_tc.mint_to(buyer, vc_tokens)
             return self._bt.rebalance()
+
         self._erc_tc.burn(vc_tokens)
         redeem_va = Oracle.exchange(Tokens(redeem_usd, self._sa_denom), self._va_denom)
         redeem_va_minus_fees = redeem_va.times(1 - Params.op_premium())
@@ -127,6 +145,7 @@ class Router(RouterI):
         # withdraw from VA pool and deposit to Fee pool
         self._va_pool.withdraw(fee_va)
         fee_sa = Oracle.exchange(fee_va, self._sa_denom)
+        # self._sa_pool.deposit(fee_sa, protocol_injected=True)
         self._fee_pool.deposit(fee_sa)
 
         logger.info(
@@ -156,7 +175,7 @@ class Router(RouterI):
 
         logger.info(Events.Provider.SuccessProvide.fmt(provider, tokens_sa))
 
-        self._bt.rebalance()
+        # self._bt.rebalance()
 
     def process_lp_provider_redeem_request(self, provider: AgentI, tokens_lp: TokenI):
         """
@@ -194,6 +213,17 @@ class Router(RouterI):
 
         self._bt.rebalance()
 
+    def dry_run_redeem_lp(self, tokens_lp: TokenI):
+        """
+        TODO: Not completely accurate; does not take into account balance of VA Pool
+        """
+        lp_portion = self._lp_tc.calculate_lp_portion(tokens_lp)
+        redeem_principal_amount = (
+            self._sa_pool.principal + self._sa_pool.initial_liquidity
+        ) * lp_portion
+        redeem_fee_usd = self._fee_pool.balance * lp_portion
+        return redeem_principal_amount + redeem_fee_usd
+
     def _handle(self, func, *args):
         """
         Handler for withdrawals from SA Pool.
@@ -210,7 +240,26 @@ class Router(RouterI):
                 raise e
         elif e:  # catch other errors
             raise e
-        return result
+        return
+        # result, e = func(*args)
+        # if isinstance(e, PoolNotEnoughBalanceError):
+        #     deficit = result
+        # extract_from_fee_pool = Tokens(
+        #     min(deficit.amount, self._fee_pool.balance), "USDC"
+        # )
+        # self._fee_pool.withdraw(extract_from_fee_pool)
+        # self._sa_pool.deposit(extract_from_fee_pool, protocol_injected=True)
+        #
+        # if geq(deficit.amount - extract_from_fee_pool.amount, 0):
+        #     liq_amount = Oracle.exchange(deficit, self._va_denom)
+        #     self._va_pool.liquidate(liq_amount)
+        #     self._sa_pool.deposit(deficit, protocol_injected=True)
+        #     result, e = func(*args)
+        #     if e:
+        #         raise e
+        # elif e:  # catch other errors
+        #     raise e
+        # return result
 
     def _calculate_amount_to_redeem_buyer_usd(self, vc_tokens: TokenI) -> Decimal:
         # calculate the maximum rate of inflationary returns that can be redeemed to buyers

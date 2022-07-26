@@ -3,17 +3,15 @@ import logging
 
 class ProcessLogger:
     def __init__(self):
-        self.__logger = logging.getLogger('__name__')
+        self.__logger = logging.getLogger("__name__")
         self.__logger.handlers.clear()
         self.__logger.propagate = False
 
-        self.__logger.setLevel(logging.INFO)
+        self.__logger.setLevel(logging.WARNING)
 
-        fmt = logging.Formatter(
-            '%(asctime)s [%(levelname)s] %(message)s'
-        )
+        fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
 
-        fh = logging.FileHandler('../info.log')
+        fh = logging.FileHandler("../info.log")
         fh.setFormatter(fmt)
 
         sh = logging.StreamHandler()
@@ -35,8 +33,8 @@ class ProcessLogger:
         self.__logger.debug(message)
 
     def test(self, test_name):
-        self.__logger.debug('=============END TEST {}=============\n'.format(test_name))
+        self.__logger.debug("=============END TEST {}=============\n".format(test_name))
 
 
-if __name__ == '__main__':
-    open('../info.log', 'w').close()
+if __name__ == "__main__":
+    open("../info.log", "w").close()

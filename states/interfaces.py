@@ -19,15 +19,15 @@ class TokenI(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def plus(self, token: 'TokenI') -> 'TokenI':
+    def plus(self, token: "TokenI") -> "TokenI":
         pass
 
     @abstractmethod
-    def minus(self, token: 'TokenI') -> 'TokenI':
+    def minus(self, token: "TokenI") -> "TokenI":
         pass
 
     @abstractmethod
-    def times(self, dec: Decimal) -> 'TokenI':
+    def times(self, dec: Decimal) -> "TokenI":
         pass
 
 
@@ -54,16 +54,6 @@ class WalletI(metaclass=ABCMeta):
     def balance_of(self, denom: str) -> Decimal:
         pass
 
-    @property
-    @abstractmethod
-    def total_redeemed(self) -> Dict[str, Decimal]:
-        pass
-
-    @property
-    @abstractmethod
-    def total_spent(self) -> Dict[str, Decimal]:
-        pass
-
 
 class BuyerWalletI(WalletI):
     @abstractmethod
@@ -78,7 +68,6 @@ class EventBusI(metaclass=ABCMeta):
 
 
 class AgentI(metaclass=ABCMeta):
-
     @property
     @abstractmethod
     def name(self) -> str:
@@ -124,7 +113,7 @@ class PoolI(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def deposit(self, tokens: TokenI) -> TokenI:
+    def deposit(self, tokens: TokenI, protocol_injected=False) -> TokenI:
         pass
 
     @abstractmethod
@@ -132,7 +121,9 @@ class PoolI(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def redeem_to(self, recipient: AgentI, tokens: TokenI) -> Tuple[TokenI, Optional[Exception]]:
+    def redeem_to(
+        self, recipient: AgentI, tokens: TokenI
+    ) -> Tuple[TokenI, Optional[Exception]]:
         pass
 
 
@@ -159,7 +150,6 @@ class VolatilePoolI(PoolI):
 
 
 class TokenContractI(metaclass=ABCMeta):
-
     @property
     @abstractmethod
     def tokens_issued(self) -> Dict[str, Decimal]:
@@ -198,6 +188,21 @@ class ERCTokenContractI(TokenContractI):
 class RouterI(metaclass=ABCMeta):
     @property
     @abstractmethod
+    def num_triggered(self) -> int:
+        pass
+
+    @property
+    @abstractmethod
+    def num_rebalanced(self) -> int:
+        pass
+
+    @property
+    @abstractmethod
+    def is_accepting_liquidity(self) -> bool:
+        pass
+
+    @property
+    @abstractmethod
     def va_denom(self) -> str:
         pass
 
@@ -219,7 +224,13 @@ class RouterI(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def process_lp_provider_redeem_request(self, provider: AgentI, tokens: TokenI) -> None:
+    def process_lp_provider_redeem_request(
+        self, provider: AgentI, tokens: TokenI
+    ) -> None:
+        pass
+
+    @abstractmethod
+    def dry_run_redeem_lp(self, tokens_lp: TokenI) -> Decimal:
         pass
 
 

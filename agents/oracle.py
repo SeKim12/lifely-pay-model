@@ -12,8 +12,8 @@ logger = processlogger.ProcessLogger()
 
 
 class Oracle(mesa.Agent):
-    _initial_prices = {'ETH': dec(1337), 'USDC': dec(1)}
-    _prices = {'ETH': dec(1337), 'USDC': dec(1)}
+    _initial_prices = {"ETH": dec(1337), "USDC": dec(1)}
+    _prices = {"ETH": dec(1337), "USDC": dec(1)}
 
     def __init__(self, model):
         super().__init__(-1, model)
@@ -25,13 +25,19 @@ class Oracle(mesa.Agent):
         Oracle._prices = Oracle._initial_prices
 
     @staticmethod
+    def set_price(val):
+        Oracle._prices["ETH"] = val
+
+    @staticmethod
     def get_price_of(denom: str) -> Decimal:
         return Oracle._prices[denom]
 
     @staticmethod
     def exchange(src_token: TokenI, target_denom: str) -> TokenI:
         src_amount, src_denom = src_token.decompose()
-        relative_price = Oracle.get_price_of(src_denom) / Oracle.get_price_of(target_denom)
+        relative_price = Oracle.get_price_of(src_denom) / Oracle.get_price_of(
+            target_denom
+        )
         return Tokens(src_amount * relative_price, target_denom)
 
     @staticmethod
@@ -44,6 +50,7 @@ class Oracle(mesa.Agent):
 
     @staticmethod
     def _force_change_price_to(price: Decimal, denom: str) -> None:
-        logger.debug(Events.Test.ChangePrice.fmt(denom, Oracle.get_price_of(denom), price))
+        logger.debug(
+            Events.Test.ChangePrice.fmt(denom, Oracle.get_price_of(denom), price)
+        )
         Oracle._prices[denom] = price
-

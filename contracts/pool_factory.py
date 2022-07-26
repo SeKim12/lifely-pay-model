@@ -33,10 +33,11 @@ class Pool(PoolI):
     def balance(self):
         return self._balance
 
-    def deposit(self, tokens: TokenI):
+    def deposit(self, tokens: TokenI, protocol_injected=False):
         """
         Deposit tokens to pool.
 
+        :param protocol_injected: NOOP
         :param tokens: tokens to deposit, w/ same denom as pool
         :return: tokens deposited
         """
