@@ -2,5 +2,3 @@
 Agent-Based Model of LifelyPay using [Mesa](https://mesa.readthedocs.io/en/latest/), a Python ABM Framework
 ## Requirements
 - python >= 3.8.9
-
-![Alt Text](https://tenor.com/vI9x.gif)
